@@ -70,14 +70,29 @@ void daemonize(const char * cmd){
 		exit(-1);
 	}
 }
-
-void checkArgs(char ** argv){
+int checkArgs(char ** argv){
 	int port;
+    DIR * serve_dir,* log_dir;
+    DIR *opendir(const char *name);
+
 	
 	port = atoi(argv[1]);
-	if((port > MAXPORT) || (port < 0)){
-		fprintf(stderr, "Port: %d, does not exist\n", port);
-		exit(-1);
-	}
+    if((port > MAXPORT) || (port < 0)){
+        fprintf(stderr, "Port: %d, does not exist\n", port);
+        exit(-1);
+    }
 
+    serve_dir = opendir(argv[2]);
+    if(serve_dir == NULL){
+        fprintf(stderr, "Directory:%s DNE\n", argv[2] );
+        exit(-1);
+    }
+
+    log_dir = opendir(argv[3]);
+    if(log_dir == NULL){
+        fprintf(stderr, "Directory:%s DNE\n", argv[3] );
+        exit(-1);
+    }
+
+    return port;
 }

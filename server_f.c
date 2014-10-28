@@ -2,11 +2,9 @@
 #define MAXSIZE 4096
 
 int main(int argc, char ** argv){
-	char message[MAXSIZE];
-	int port;
-	DIR * serve_dir,* log_dir;
-    DIR *opendir(const char *name);
-
+	char message[MAXSIZE], buffer[MAXSIZE];
+	int port, lfd, cfd;
+	struct sockaddr_in s_addr;
 
 	//fprintf(stderr,"Before daemon pid: %d\n", getpid());
 	if(argc < 4){
@@ -14,26 +12,27 @@ int main(int argc, char ** argv){
 		exit(-1);
 	}
 
-	port = atoi(argv[1]);
-	if((port > MAXPORT) || (port < 0)){
-		fprintf(stderr, "Port: %d, does not exist\n", port);
-		exit(-1);
-	}
-
-	serve_dir = opendir(argv[2]);
-	if(serve_dir == NULL){
-		fprintf(stderr, "Directory:%s DNE\n", argv[2] );
-		exit(-1);
-	}
-
-	log_dir = opendir(argv[3]);
-	if(log_dir == NULL){
-		fprintf(stderr, "Directory:%s DNE\n", argv[3] );
-		exit(-1);
-	}
+	port = checkArgs(argv);
 
 	daemonize(message);
 
-	while(1);
+	lfd = socket(AF_LOCAL, SOCK_STREAM, 0);
+
+	memset(&s_addr, '0', sizeof(s_addr));
+    memset(buffer, '0', sizeof(buffer)); 
+
+    s_addr.sin_family = AF_INET;
+    s_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    s_addr.sin_port = htons(port); 
+
+    bind(lfd, (struct sockaddr*)&s_addr, sizeof(s_addr)); 
+	listen(lfd, 10000); // TODO Change this to infinite
+	while(1){
+		cfd = accept(lfd, (struct sockaddr*) NULL, NULL); 
+
+        write(cfd, buffer, strlen(buffer)); 
+
+        close(cfd);
+	}
     return 0;
 }

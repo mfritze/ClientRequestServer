@@ -6,7 +6,7 @@
 #include "shared_server.h"
 
 void daemonize(const char * cmd){
-
+    //TODO remove all fprintf messages
 	int i, fd0, fd1, fd2;
 	pid_t pid;
 	struct rlimit rl;

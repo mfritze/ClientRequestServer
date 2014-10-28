@@ -4,6 +4,7 @@
  * Assignment 2 */
 
 #include "shared_server.h"
-#include <sys/types.h>
-#include <sys/wait.h>
+
+extern void daemonize(const char * );
+extern char ** sortArgs(char ** );
 

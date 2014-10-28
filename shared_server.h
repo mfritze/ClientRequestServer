@@ -7,10 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/resource.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
 #include <pthread.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -18,6 +14,14 @@
 #include <dirent.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <err.h>
+#include <errno.h>
+#include <sys/wait.h>
+#include <sys/resource.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+
 
 #define MAXPORT 65535
 

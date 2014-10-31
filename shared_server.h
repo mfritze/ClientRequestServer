@@ -16,6 +16,7 @@
 #include <arpa/inet.h>
 #include <err.h>
 #include <errno.h>
+#include <time.h>
 #include <sys/wait.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -25,5 +26,6 @@
 
 #define MAXPORT 65535
 
-void daemonize(const char *);
+void daemonize();
 int checkArgs(char **);
+void logEvent(FILE * logFile, char * request, char * responce);

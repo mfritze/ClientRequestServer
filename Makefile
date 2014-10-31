@@ -9,7 +9,7 @@ POBJS  = server_p.o shared_server.o
 FOBJS  = server_f.o shared_server.o
 PDEPS  = shared_server.h shared_server.h
 FDEPS  = server_f.c server_f.h
-SDEPS  = shared_server.h shared_server.h
+SDEPS  = shared_server.c shared_server.h
 
 all: $(OBJS)
 	gcc $(CFLAGS) $(POBJS) -o server_p

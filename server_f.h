@@ -5,5 +5,6 @@
 
 #include "shared_server.h"
 
-extern void daemonize(const char * );
+extern void daemonize();
 extern char ** sortArgs(char ** );
+extern void logEvent(FILE * , char *, char *);

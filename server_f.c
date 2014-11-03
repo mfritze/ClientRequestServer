@@ -3,29 +3,26 @@
 #define BACKLOG 200
 
 int main(int argc, char ** argv){
-	char buffer[MAXSIZE];
-	int port, lfd, cfd, w, written;
+	char rbuffer[MAXSIZE], * wbuffer;
+	int port, lfd, cfd, w, written, r;
 	pid_t pid;
 	struct sockaddr_in s_addr, client;
 	struct sigaction sa;
 	socklen_t clientlen;
 	FILE * logFile;
 
-	//fprintf(stderr,"Before daemon pid: %d\n", getpid());
 	if (argc != 4){
-		fprintf(stderr, "Not enough args\n");
+		fprintf(stderr, "Wrong number of args\n");
 		exit(-1);
 	}
 
-	port = 8401;//checkArgs(argv);
-
+	port = checkArgs(argv);
 	logFile = fopen(argv[3], "w");
-	logEvent(logFile, "a", "a");
+	logEvent(logFile, "Test 1", "Test 3");
 
 	//daemonize();
 
 	memset(&s_addr, 0, sizeof(s_addr));
-    //memset(buffer, '0', sizeof(buffer)); 
 
     s_addr.sin_family = AF_INET;
     s_addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -56,7 +53,6 @@ int main(int argc, char ** argv){
     sa.sa_flags = SA_RESTART;
     if (sigaction(SIGCHLD, &sa, NULL) == -1) 
             err(1, "sigaction failed");
-
   
     /* Change the current working directory to the root
      so we won't prevent file systems from being unmounted */
@@ -65,7 +61,9 @@ int main(int argc, char ** argv){
   //    if(chdir(argv[2]) < 0){ 
   //   	fprintf(stderr, "Can't change directory to the root\n");
 	 // }
-	fprintf(stderr,"Server up and listening for connections on port %u\n", port);
+
+	//fprintf(stderr,"Server up and listening for connections on port %u\n", port);
+
 
 	while (1){
 		clientlen = sizeof(&client);
@@ -95,14 +93,21 @@ int main(int argc, char ** argv){
 			// 	else
 			// 		written += w;
 			// }
+			r = read(cfd, rbuffer, MAXSIZE);
+			if(r < 0){
+				err(1, "Read error \n");
+			}
+			//fprintf(stderr, "Message Read: %s\r\n", rbuffer);
+
+			wbuffer = handleRequest(rbuffer, argv[2]);
+
 			w = write(cfd, "test/n", 5);
 			if(w == -1){
 				err(1, "write failed");
 			}
-
 			exit(0);
 		}
-		logEvent(logFile, "DOne", "Beep");
+		//logEvent(logFile, "DOne", "Beep");
         close(cfd);
 	}
     return 0;

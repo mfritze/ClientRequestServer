@@ -28,4 +28,7 @@
 
 void daemonize();
 int checkArgs(char **);
-void logEvent(FILE * logFile, char * request, char * responce);
+void logEvent(FILE * , char * , char * );
+void getDate(char *);
+char * handleRequest(char * , char *);
+int isValid(char *, char *);

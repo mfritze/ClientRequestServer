@@ -2,9 +2,14 @@
 #define MAXSIZE 4096
 #define BACKLOG 200
 
+static void kidhandler(int signum) {
+	/* signal handler for SIGCHLD */
+	waitpid(WAIT_ANY, NULL, WNOHANG);
+}
+
 int main(int argc, char ** argv){
 	char rbuffer[MAXSIZE], * wbuffer;
-	int port, lfd, cfd, w, written, r;
+	int port, lfd, w, written, r;
 	pid_t pid;
 	struct sockaddr_in s_addr, client;
 	struct sigaction sa;
@@ -25,8 +30,8 @@ int main(int argc, char ** argv){
 	memset(&s_addr, 0, sizeof(s_addr));
 
     s_addr.sin_family = AF_INET;
-    s_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     s_addr.sin_port = htons(port);
+    s_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     lfd = socket(AF_INET, SOCK_STREAM, 0); 
 
@@ -42,7 +47,7 @@ int main(int argc, char ** argv){
 	 * sigemptyset() initializes the signal set given by set  to  empty,  
 	 * with all signals excluded from the set.
      */
-	sa.sa_handler = waitpid(WAIT_ANY, NULL, WNOHANG);;
+	sa.sa_handler = kidhandler;
     sigemptyset(&sa.sa_mask);
 	/*
 	 * we want to allow system calls like accept to be restarted if they
@@ -66,8 +71,9 @@ int main(int argc, char ** argv){
 
 
 	while (1){
+		int cfd;
 		clientlen = sizeof(&client);
-		cfd = accept(lfd, (struct sockaddr*) & client, &clientlen); 
+		cfd = accept(lfd, (struct sockaddr *)&client, &clientlen); 
 		
 		if (cfd == -1)
 		 	err(1, "accept failed");

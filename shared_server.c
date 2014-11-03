@@ -124,7 +124,7 @@ char * handleRequest(char * request, char * serverPath){
 }
 
 int isValid(char * request, char * serverPath){
-    char * get = "GET",* http = "HTTP/1.1", c, getBuff[3], httpBuff[9], * serveAddr;
+    char * get = "GET",* http = "HTTP/1.1", c, getBuff[3], httpBuff[8], * serveAddr;
     FILE * serve;
     int spaceCount = 0, i, start, end, dif;
 
@@ -132,39 +132,39 @@ int isValid(char * request, char * serverPath){
         return -1;
     }
 
-    printf("Server path:%s\n", serverPath );
-
     memcpy(getBuff, request, 3);
-    printf("GEt buff: %s, compare: %d\n", getBuff, strcmp(get, getBuff));
 
-    // if(strcpy(getBuff, get) != 0){
-    //     printf("Bad request\n");
-    //     return -1; //Not a get request
-    // }
+    if(strcmp(get, getBuff) != 0){
+        printf("Bad request\n");
+        return -1; //Not a get request
+    }
 
-    for(i = 0; request[i] != '\0'; i++){
+    for(i = 0; i < strlen(request); i++){
         c = request[i];
+        printf("C: %c\n",c );
         if(c == ' '){
             spaceCount++;
             if(spaceCount == 1){
                 start = (i + 1);
             }
-            else{
+            else if(spaceCount == 2){
                 end = i;
             }
         }
     }
 
-    memcpy(httpBuff, request[i + 1], 8);
-    httpBuff[0] = '\0';
-    printf("HTTP buff: %s\n", httpBuff);
+    memcpy(httpBuff, request + (end + 1), 8);
+    //printf("HTTP buff: %s\n",httpBuff);
 
     dif = end - start;
-    serveAddr = malloc(dif);
-    memcpy(serveAddr, request[start], dif - 1);
-    serveAddr[dif - 1] = '\0';
+    serveAddr = malloc(dif + 1);
+    memcpy(serveAddr, request  + start, dif);
+    serveAddr[dif] = '\0';
     //check validity of the file
-    printf("Addr:--%s--\n", serveAddr);
+    //printf("Addr:--%s--\n", serveAddr);
+
+    //TODO test blank line at the end
+    if()
 
     free(serveAddr);
     return 0;

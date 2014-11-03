@@ -7,6 +7,11 @@
 #define DATELEN 32
 #define ENTRYLEN 256
 #define MINLEN 16
+#define OK 200
+#define BAD 400
+#define FORBIDDEN 403
+#define NOTFOUND 404
+#define SERVERERR 500
 
 void daemonize(){
     //TODO remove all fprintf messages
@@ -114,7 +119,7 @@ char * handleRequest(char * request, char * serverPath){
          * forbidden = "HTTP/1.1 403 Forbidden\n",
          * server_err = "HTTP/1.1 500 Internal Server Error\n",
          * rMessage = "TEMP";
-    int valid;
+    int valid; // (200: okay, 400: bad, 404: FNF, 403 Forbidden; 500: Server err)
 
     valid = isValid(request, serverPath);
     printf("Valid: %d\n", valid);
@@ -125,21 +130,14 @@ char * handleRequest(char * request, char * serverPath){
 
 int isValid(char * request, char * serverPath){
     char * get = "GET",* http = "HTTP/1.1", c, getBuff[3], httpBuff[8], * serveAddr;
-    FILE * serve;
-    int spaceCount = 0, i, start, end, dif;
+    int spaceCount = 0, i, start, end, dif, reqLen;
 
-    if(strlen(request) < MINLEN){
-        return -1;
+    reqLen = strlen(request);
+    if(reqLen < MINLEN){
+        return BAD;
     }
 
-    memcpy(getBuff, request, 3);
-
-    if(strcmp(get, getBuff) != 0){
-        printf("Bad request\n");
-        return -1; //Not a get request
-    }
-
-    for(i = 0; i < strlen(request); i++){
+    for(i = 0; i < reqLen; i++){
         c = request[i];
         printf("C: %c\n",c );
         if(c == ' '){
@@ -153,7 +151,18 @@ int isValid(char * request, char * serverPath){
         }
     }
 
+    memcpy(getBuff, request, 3);
+
+    if(strcmp(get, getBuff) != 0){
+        printf("Bad request\n");
+        return BAD; //Not a get request
+    }
+
     memcpy(httpBuff, request + (end + 1), 8);
+    if(strcmp(http, httpBuff) != 0){
+        printf("Not http 1.1\n");
+        return BAD;
+    }
     //printf("HTTP buff: %s\n",httpBuff);
 
     dif = end - start;
@@ -163,9 +172,25 @@ int isValid(char * request, char * serverPath){
     //check validity of the file
     //printf("Addr:--%s--\n", serveAddr);
 
-    //TODO test blank line at the end
-    if()
-
+    serveAddr = realloc(serveAddr, (dif + 1) + strlen(serverPath));
+    strcat(serverPath, serveAddr); //TODO remove the possible double //
+    printf("ServeAddr: %s\n", serveAddr );
+    if(access(serveAddr, F_OK) == -1){
+        fprintf(stderr, "File:%s DNE\n", serveAddr);
+        return NOTFOUND;
+    }
+    if(access(serveAddr, F_)){ //Permission
+        return FORBIDDEN;
+    }
     free(serveAddr);
+
+    //test end newline
+    // \n, \n\r\n, \n\n
+    if( (request[reqLen - 1] != '\n') || 
+       ((request[reqLen - 2] != '\r') && (request[reqLen - 3] != '\n')) ||
+       ((request[reqLen - 1] != '\n') && (request[reqLen - 2] != '\n'))){
+        printf("Doesnt end in a newline \n");
+        return -1;
+    }
     return 0;
 }

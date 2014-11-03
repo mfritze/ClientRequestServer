@@ -23,7 +23,7 @@ int main(int argc, char ** argv){
 
 	port = checkArgs(argv);
 	logFile = fopen(argv[3], "w");
-	logEvent(logFile, "Test 1", "Test 3");
+	//logEvent(logFile, "Test 1", "Test 3");
 
 	//daemonize();
 
@@ -111,9 +111,9 @@ int main(int argc, char ** argv){
 			if(w == -1){
 				err(1, "write failed");
 			}
+			//logEvent(logFile, ...);
 			exit(0);
 		}
-		//logEvent(logFile, "DOne", "Beep");
         close(cfd);
 	}
     return 0;

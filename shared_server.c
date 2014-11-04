@@ -7,6 +7,7 @@
 #define DATELEN 32
 #define ENTRYLEN 256
 #define MINLEN 16
+#define RESPONCELEN 26
 #define OK 200
 #define BAD 400
 #define FORBIDDEN 403
@@ -53,9 +54,10 @@ void daemonize(){
     fclose(stdin);
 
 }
+
 int checkArgs(char ** argv){
 	int port;
-    DIR * serve_dir,* log_dir;
+    DIR * serve_dir;
     DIR *opendir(const char *name);
 
 	port = atoi(argv[1]);
@@ -64,11 +66,11 @@ int checkArgs(char ** argv){
         exit(-1);
     }
     // TODO
-    // serve_dir = opendir(argv[2]);
-    // if(serve_dir == NULL){
-    //     fprintf(stderr, "Directory:%s DNE\n", argv[2] );
-    //     exit(-1);
-    // }
+    serve_dir = opendir(argv[2]);
+    if(serve_dir == NULL){
+        fprintf(stderr, "Directory:%s DNE\n", argv[2] );
+        exit(-1);
+    }
 
     // log_dir = opendir(argv[3]);
     // if(log_dir == NULL){
@@ -80,22 +82,13 @@ int checkArgs(char ** argv){
 }
 
 void logEvent(FILE * logFile, char * request, char * responce){
-    char * tab = "\t",* date, * host = "127.0.0.1", entry[ENTRYLEN];
+    char * date,  entry[ENTRYLEN];
 
     date = malloc(DATELEN * sizeof(char));
-
     getDate(date);
 
-    strcat(entry, date);
-    strcat(entry, tab);
-    strcat(entry, host);
-    strcat(entry, tab);
-    strcat(entry, request);
-    strcat(entry, tab);
-    strcat(entry, responce);
-    strcat(entry, "\n");
+    snprintf(entry, ENTRYLEN, "%s\t127.0.0.1\t%s\t%s\n", date, request, responce);
     fwrite(entry,1, strlen(entry), logFile);
-
     free(date);
 }
 
@@ -111,27 +104,61 @@ void getDate(char * date){
 }
 
 char * handleRequest(char * request, char * serverPath){
-    char * content = "Content-Type: text/html\n", 
-         * contentLen = "Content-Length:",
-         * ok = "HTTP/1.1 200 OK\n", 
-         * bad = "HTTP/1.1 400 Bad Request\n", 
-         * notFound = "HTTP/1.1 404 Not Found\n",
-         * forbidden = "HTTP/1.1 403 Forbidden\n",
-         * server_err = "HTTP/1.1 500 Internal Server Error\n",
-         * rMessage = "TEMP";
-    int valid; // (200: okay, 400: bad, 404: FNF, 403 Forbidden; 500: Server err)
+    char responce[RESPONCELEN], * htmlResponce, * rMessage, * date;
+    int responseSize, fileSize, valid; 
 
     valid = isValid(request, serverPath);
     printf("Valid: %d\n", valid);
 
+    switch(valid){
+        case(OK):
+            strcpy(responce, "200 OK" );
+            //htmlResponce = getResponce("")
+            break;
+        case(BAD):
+            strcpy(responce, "400 Bad Request");
+            htmlResponce = getResponce("400.html");
+            break;
+        case(FORBIDDEN):
+            strcpy(responce, "403 Forbidden");
+            htmlResponce = getResponce("403.html");
+            break;
+        case(NOTFOUND):
+            strcpy(responce, "404 Not Found");
+            htmlResponce = getResponce("404.html");
+            break;
+        case(SERVERERR):
+            strcpy(responce, "500 Internal Server Error");
+            htmlResponce = getResponce("500.html");
+            break;
+    }
+    printf("responce: %s\n", responce );
 
+    date = malloc(sizeof(char)*DATELEN);
+    getDate(date);
+
+    fileSize = strlen(htmlResponce);
+    responseSize = fileSize + DATELEN + RESPONCELEN;
+    rMessage = malloc(responseSize * sizeof(char));
+
+    snprintf(rMessage, responseSize, 
+        "HTTP/1.1 %s\n%s\nContent-Type: text/html\nContent-Length: %d\n%s",
+        responce, date, fileSize, htmlResponce);
+
+    free(htmlResponce);
+    free(date);
     return rMessage;
+
 }
 
-int isValid(char * request, char * serverPath){
-    char * get = "GET",* http = "HTTP/1.1", c, getBuff[3], httpBuff[8], * serveAddr;
-    int spaceCount = 0, i, start, end, dif, reqLen;
 
+int isValid(char * request, char * serverPath){
+    char * get = "GET",* http = "HTTP/1.1", c, getBuff[3], 
+           httpBuff[8], * serveAddr;
+    int spaceCount = 0, i, start, end, dif, reqLen, pathLen;
+    FILE * testOpen;
+
+    pathLen = strlen(serverPath);
     reqLen = strlen(request);
     if(reqLen < MINLEN){
         return BAD;
@@ -139,7 +166,6 @@ int isValid(char * request, char * serverPath){
 
     for(i = 0; i < reqLen; i++){
         c = request[i];
-        printf("C: %c\n",c );
         if(c == ' '){
             spaceCount++;
             if(spaceCount == 1){
@@ -163,7 +189,15 @@ int isValid(char * request, char * serverPath){
         printf("Not http 1.1\n");
         return BAD;
     }
-    //printf("HTTP buff: %s\n",httpBuff);
+
+    if((serverPath[pathLen - 1] == '/') || (serverPath[pathLen - 1] == '.')){
+        serverPath[pathLen - 1] = '\0';
+        pathLen -= 1;
+
+    }
+    if((request[start] == '/') && (pathLen == 0)){
+        start++;
+    }
 
     dif = end - start;
     serveAddr = malloc(dif + 1);
@@ -172,16 +206,23 @@ int isValid(char * request, char * serverPath){
     //check validity of the file
     //printf("Addr:--%s--\n", serveAddr);
 
-    serveAddr = realloc(serveAddr, (dif + 1) + strlen(serverPath));
+    serveAddr = realloc(serveAddr, (dif + 1) + pathLen);
+
     strcat(serverPath, serveAddr); //TODO remove the possible double //
-    printf("ServeAddr: %s\n", serveAddr );
-    if(access(serveAddr, F_OK) == -1){
-        fprintf(stderr, "File:%s DNE\n", serveAddr);
+    printf("serveAddr: %s\n", serveAddr );
+
+    if((testOpen = fopen(serveAddr, "r"))){ //TODO this will be wrong if file exists but is forbidden
+        fclose(testOpen);
+    }else{
+        fprintf(stderr, "File:%s can't be opened\n", serveAddr);
         return NOTFOUND;
     }
-    if(access(serveAddr, F_)){ //Permission
+
+    if(access(serveAddr, F_OK) == -1){
+        fprintf(stderr, "File:%s DNE\n", serveAddr);
         return FORBIDDEN;
     }
+
     free(serveAddr);
 
     //test end newline
@@ -190,7 +231,31 @@ int isValid(char * request, char * serverPath){
        ((request[reqLen - 2] != '\r') && (request[reqLen - 3] != '\n')) ||
        ((request[reqLen - 1] != '\n') && (request[reqLen - 2] != '\n'))){
         printf("Doesnt end in a newline \n");
-        return -1;
+        return BAD;
     }
-    return 0;
+    return OK;
+}
+
+char * getResponce(char * addr){
+    FILE * fp;
+    char * responce;
+    int fileSize, rBytes;
+
+    fp = fopen(addr, "r");
+
+    fseek(fp, 0L, SEEK_END);
+    fileSize = ftell(fp);
+    fseek(fp, 0L, SEEK_SET);
+
+    printf("Size: fileSize\n");
+
+    responce = malloc(fileSize * sizeof(char));
+    rBytes = fread(responce, 1, fileSize, fp);
+    if(rBytes != fileSize){
+        fprintf(stderr, "Errer Reading: %s, exiting \n", addr);
+        exit(-1);
+    }
+    fclose(fp);
+
+    return responce;
 }

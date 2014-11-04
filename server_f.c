@@ -107,11 +107,14 @@ int main(int argc, char ** argv){
 
 			wbuffer = handleRequest(rbuffer, argv[2]);
 
-			w = write(cfd, "test/n", 5);
+			printf("Wbuffer: %s\n", wbuffer );
+
+			w = write(cfd, wbuffer, 5);
 			if(w == -1){
 				err(1, "write failed");
 			}
 			//logEvent(logFile, ...);
+			free(wbuffer);
 			exit(0);
 		}
         close(cfd);

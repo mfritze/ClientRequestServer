@@ -32,3 +32,4 @@ void logEvent(FILE * , char * , char * );
 void getDate(char *);
 char * handleRequest(char * , char *);
 int isValid(char *, char *);
+char * getResponce(char * );

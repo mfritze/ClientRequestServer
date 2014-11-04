@@ -132,13 +132,14 @@ char * handleRequest(char * request, char * serverPath){
             htmlResponce = getResponce("500.html");
             break;
     }
+
     printf("responce: %s\n", responce );
 
     date = malloc(sizeof(char)*DATELEN);
     getDate(date);
 
     fileSize = strlen(htmlResponce);
-    responseSize = fileSize + DATELEN + RESPONCELEN;
+    responseSize = fileSize + DATELEN + RESPONCELEN + 64; //64 is for the labels
     rMessage = malloc(responseSize * sizeof(char));
 
     snprintf(rMessage, responseSize, 
@@ -247,7 +248,7 @@ char * getResponce(char * addr){
     fileSize = ftell(fp);
     fseek(fp, 0L, SEEK_SET);
 
-    printf("Size: fileSize\n");
+    printf("Size: fileSize %d\n", fileSize );
 
     responce = malloc(fileSize * sizeof(char));
     rBytes = fread(responce, 1, fileSize, fp);

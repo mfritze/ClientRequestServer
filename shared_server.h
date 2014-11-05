@@ -33,3 +33,5 @@ void getDate(char *);
 char * handleRequest(char * , char *);
 int isValid(char *, char *);
 char * getResponce(char * );
+void getFileAddr(char * fPath, char * sPath, char * request);
+

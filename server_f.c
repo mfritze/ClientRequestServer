@@ -23,7 +23,6 @@ int main(int argc, char ** argv){
 
 	port = checkArgs(argv);
 	logFile = fopen(argv[3], "w");
-	//logEvent(logFile, "Test 1", "Test 3");
 
 	//daemonize();
 
@@ -83,38 +82,26 @@ int main(int argc, char ** argv){
 		     err(1, "fork failed");
 
 		if(pid == 0) {
-		 /* write the message to the client, being sure to
-			 * handle a short write, or being interrupted b
-			 * a signal before we could write anything.
-			 */
-
-			// w = 0;
-			// written = 0;
-			// while (written < strlen(buffer)) {
-			// 	w = write(cfd, buffer + written, strlen(buffer) - written);
-			// 	if (w == -1) {
-			// 		if (errno != EINTR)
-			// 			err(1, "write failed");
-			// 	}
-			// 	else
-			// 		written += w;
-			// }
-			r = read(cfd, rbuffer, MAXSIZE);
+			r = read(cfd, rbuffer, MAXSIZE); //TODO infinitely?
+			//TODO maybe same as write below
 			if(r < 0){
 				err(1, "Read error \n");
 			}
-			//fprintf(stderr, "Message Read: %s\r\n", rbuffer);
 
 			wbuffer = handleRequest(rbuffer, argv[2]);
+			written = 0;
 
-			printf("Wbuffer: %s\n", wbuffer );
-
-			w = write(cfd, wbuffer, 5);
-			if(w == -1){
-				err(1, "write failed");
+			while(written < strlen(wbuffer)){
+				w = write(cfd, wbuffer + written, strlen(wbuffer) - written);
+				if(w == -1){
+					err(1, "write failed");
+				}else{
+					written += w;
+				}
 			}
-			//logEvent(logFile, ...);
-			free(wbuffer);
+			//fprintf(stderr, "Written: %d\n", written);
+			logEvent(logFile, "a", "b" );
+			free(wbuffer); // Is this right?
 			exit(0);
 		}
         close(cfd);

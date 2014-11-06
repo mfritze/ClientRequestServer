@@ -7,4 +7,4 @@
 
 extern void daemonize();
 extern char ** sortArgs(char ** );
-extern void logEvent(FILE * , char *, char *);
+extern void logEvent(FILE * , char *, char *, int , int);

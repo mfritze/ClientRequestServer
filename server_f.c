@@ -8,7 +8,7 @@ static void kidhandler(int signum) {
 }
 
 int main(int argc, char ** argv){
-	char rbuffer[MAXSIZE], * wbuffer;
+	char rbuffer[MAXSIZE], * wbuffer; //TODO make rbuffer dynamically allocated
 	int port, lfd, w, written, r;
 	pid_t pid;
 	struct sockaddr_in s_addr, client;
@@ -40,33 +40,23 @@ int main(int argc, char ** argv){
 	if (bind(lfd, (struct sockaddr *) &s_addr, sizeof(s_addr)) == -1)
 		err(1, "bind failed");
 
-	if (listen(lfd,BACKLOG) == -1)// TODO Change 3 to infinite
+	if (listen(lfd,BACKLOG) == -1)
 		err(1, "listen failed");
+
 	/*
 	 * sigemptyset() initializes the signal set given by set  to  empty,  
 	 * with all signals excluded from the set.
      */
 	sa.sa_handler = kidhandler;
     sigemptyset(&sa.sa_mask);
+	
 	/*
 	 * we want to allow system calls like accept to be restarted if they
 	 * get interrupted by a SIGCHLD
-	 * The  sigaction()  system  call  is used to change the action taken by a
-     *  process on receipt of a specific signal.
 	 */
     sa.sa_flags = SA_RESTART;
     if (sigaction(SIGCHLD, &sa, NULL) == -1) 
             err(1, "sigaction failed");
-  
-    /* Change the current working directory to the root
-     so we won't prevent file systems from being unmounted */
-
-        // This can be used to serve clients
-  //    if(chdir(argv[2]) < 0){ 
-  //   	fprintf(stderr, "Can't change directory to the root\n");
-	 // }
-
-	//fprintf(stderr,"Server up and listening for connections on port %u\n", port);
 
 
 	while (1){
@@ -99,8 +89,11 @@ int main(int argc, char ** argv){
 					written += w;
 				}
 			}
-			//fprintf(stderr, "Written: %d\n", written);
-			logEvent(logFile, "a", "b" );
+
+			// this needs to be blocking
+			//flockfile
+			//funlockfile
+			logEvent(logFile, rbuffer, wbuffer, written, strlen(wbuffer));
 			free(wbuffer); // Is this right?
 			exit(0);
 		}

@@ -11,15 +11,22 @@ int main(int argc, char ** argv){
 	char rbuffer[MAXSIZE], * wbuffer; //TODO make rbuffer dynamically allocated
 	int port, lfd, w, written, r;
 	pid_t pid;
-	struct sockaddr_in s_addr, client;
-	struct sigaction sa;
 	socklen_t clientlen;
 	FILE * logFile;
+	struct sockaddr_in s_addr, client;
+	struct sigaction sa;
+	struct flock logLock;
 
 	if (argc != 4){
 		fprintf(stderr, "Wrong number of args\n");
 		exit(-1);
 	}
+
+	/*logLock.l_type = F_WRLCK;
+	logLock.l_whence = SEEK_SET;
+	logLock.l_start = 0;
+	logLock.l_len = 0;
+	logLock.l_pid = getpid(); */
 
 	port = checkArgs(argv);
 	logFile = fopen(argv[3], "w");
@@ -43,17 +50,9 @@ int main(int argc, char ** argv){
 	if (listen(lfd,BACKLOG) == -1)
 		err(1, "listen failed");
 
-	/*
-	 * sigemptyset() initializes the signal set given by set  to  empty,  
-	 * with all signals excluded from the set.
-     */
 	sa.sa_handler = kidhandler;
     sigemptyset(&sa.sa_mask);
 	
-	/*
-	 * we want to allow system calls like accept to be restarted if they
-	 * get interrupted by a SIGCHLD
-	 */
     sa.sa_flags = SA_RESTART;
     if (sigaction(SIGCHLD, &sa, NULL) == -1) 
             err(1, "sigaction failed");
@@ -72,7 +71,7 @@ int main(int argc, char ** argv){
 		     err(1, "fork failed");
 
 		if(pid == 0) {
-			r = read(cfd, rbuffer, MAXSIZE); //TODO infinitely?
+			r = read(cfd, rbuffer, MAXSIZE); 
 			//TODO maybe same as write below
 			if(r < 0){
 				err(1, "Read error \n");
@@ -93,7 +92,13 @@ int main(int argc, char ** argv){
 			// this needs to be blocking
 			//flockfile
 			//funlockfile
+			//logLock.l_pid = getpid();
+			//fcntl()
+			printf("About to log\n");
 			logEvent(logFile, rbuffer, wbuffer, written, strlen(wbuffer));
+
+
+			printf("Finished logging\n");
 			free(wbuffer); // Is this right?
 			exit(0);
 		}

@@ -1,3 +1,7 @@
 *.o
 *.exe
 stressFile.html
+getFiles/
+large.html
+small.html
+DONT

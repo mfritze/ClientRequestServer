@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <fcntl.h>
 
 
 #define MAXPORT 65535
@@ -32,6 +33,6 @@ void logEvent(FILE * , char * , char * , int ,int);
 void getDate(char *);
 char * handleRequest(char * , char *);
 int isValid(char *, char *);
-char * getResponce(char * );
+char * getResponse(char * );
 void getFileAddr(char * fPath, char * sPath, char * request);
-
+char * getHeader(char * buffer);

@@ -7,7 +7,7 @@
 #define DATELEN 32
 #define ENTRYLEN 256
 #define MINLEN 16
-#define RESPONCELEN 26
+#define RESPONSELEN 26
 #define OK 200
 #define BAD 400
 #define FORBIDDEN 403
@@ -25,11 +25,13 @@ void daemonize(){
     /* Get maximum number of file descriptors */
     if(getrlimit(RLIMIT_NOFILE, &rl) < 0){
     	fprintf(stderr, "Can't get file limit\n");
+        exit(-1);
     }
 
     /* Become a session leader to lose controlling terminal */
     if((pid = fork()) < 0){
     	fprintf(stderr, "Error forking\n");
+        exit(-1);
     }else if (pid > 0){
     	exit(0);
     }
@@ -41,9 +43,11 @@ void daemonize(){
     sa.sa_flags = 0;
     if(sigaction(SIGHUP, &sa, NULL) < 0){
     	fprintf(stderr, "Can't ignore SIGHUP\n");
+        exit(-1);
     }
     if((pid = fork()) < 0){
     	  fprintf(stderr, "Can't fork\n");
+          exit(-1);
     }
     if(pid > 0){
     	exit(0);
@@ -80,24 +84,33 @@ int checkArgs(char ** argv){
     return port;
 }
 
-void logEvent(FILE * logFile, char * request, char * responce, int written, int total){
+void logEvent(FILE * logFile, char * request, char * response, int written, int total){
     //TODO make this work lol
-    char * date,  entry[ENTRYLEN],* indx;
-
+    char * date, entry[ENTRYLEN] ,* indx, * head1, * head2;
+    //printf("--Request--\n%s\n--Response--\n%s\n", request, response);
     date = malloc(DATELEN * sizeof(char));
     getDate(date);
+    //printf("--Date--\n%s\n", date );
+    indx = strstr(response, "OK");
 
-    indx = strstr(responce, "OK");
+    head1 = getHeader(request);
+    head2 = getHeader(response);
 
-    if(indx == NULL){
+    printf("--Headers--\n-H1:%s\n-H2:%s\nnewline", head1, head2);
+    //printf("H1--%s--\n", head1);
+    //printf("--indx--\n%s\n",indx );
+    if(!indx) {
         snprintf(entry, ENTRYLEN, "%s\t127.0.0.1\t%s\t%s\n", 
-            date, request, responce);
-    }else{
+            date, head1, head2);
+    } else{
         snprintf(entry, ENTRYLEN, "%s\t127.0.0.1\t%s\t%s\t%d/%d\n", 
-            date, request, responce, written, total);        
+            date, head1, head2, written, total);        
     }
-
+    //printf("--Pre write--\n--Entry--\n%s\n", entry);
     fwrite(entry,1, strlen(entry), logFile);
+    //printf("Post write\n");
+    free(head1);
+    free(head2);
     free(date);
 }
 
@@ -113,51 +126,47 @@ void getDate(char * date){
 }
 
 char * handleRequest(char * request, char * serverPath){
-    char responce[RESPONCELEN], * htmlResponce, * rMessage, * date, * fPath;
+    char response[RESPONSELEN], * htmlresponse, * rMessage, * date, * fPath;
     int responseSize, fileSize, valid; 
-
-    valid = isValid(request, serverPath); // should I just call getFileAddr first and pass it along?
-    //printf("Valid: %d\n", valid);
+    valid = isValid(request, serverPath); 
 
     switch(valid){
         case(OK):
-            strcpy(responce, "200 OK" );
+            strcpy(response, "200 OK" );
             fPath = malloc(sizeof(char));
             getFileAddr(fPath, serverPath, request);
-            htmlResponce = getResponce(fPath);
+            htmlresponse = getResponse(fPath);
             break;
         case(BAD):
-            strcpy(responce, "400 Bad Request");
-            htmlResponce = getResponce("400.html");
+            strcpy(response, "400 Bad Request");
+            htmlresponse = getResponse("400.html");
             break;
         case(FORBIDDEN):
-            strcpy(responce, "403 Forbidden");
-            htmlResponce = getResponce("403.html");
+            strcpy(response, "403 Forbidden");
+            htmlresponse = getResponse("403.html");
             break;
         case(NOTFOUND):
-            strcpy(responce, "404 Not Found");
-            htmlResponce = getResponce("404.html");
+            strcpy(response, "404 Not Found");
+            htmlresponse = getResponse("404.html");
             break;
         case(SERVERERR):
-            strcpy(responce, "500 Internal Server Error");
-            htmlResponce = getResponce("500.html");
+            strcpy(response, "500 Internal Server Error");
+            htmlresponse = getResponse("500.html");
             break;
     }
-
-    //printf("responce: %s\n", responce );
 
     date = malloc(sizeof(char)*DATELEN);
     getDate(date);
 
-    fileSize = strlen(htmlResponce) - 1;
-    responseSize = fileSize + DATELEN + RESPONCELEN + 64; //64 is for the labels
+    fileSize = strlen(htmlresponse) - 1;
+    responseSize = fileSize + DATELEN + RESPONSELEN + 64; //64 is for the labels
     rMessage = malloc(responseSize * sizeof(char));
 
     snprintf(rMessage, responseSize, 
         "HTTP/1.1 %s\n%s\nContent-Type: text/html\nContent-Length: %d\r\n\r\n%s",
-        responce, date, fileSize, htmlResponce);
-    //printf("\nServer Responce:\n%s\n", rMessage);
-    free(htmlResponce);
+        response, date, fileSize, htmlresponse);
+
+    free(htmlresponse);
     free(date);
     //1free(fPath);
     return rMessage;
@@ -205,19 +214,17 @@ void getFileAddr(char * fPath, char * sPath, char * request){
 }
 
 int isValid(char * request, char * serverPath){
-    char * get = "GET",* http = "HTTP/1.1", c,* getBuff, 
-           httpBuff[8], * serveAddr;
+    char  * get = "GET",* http = "HTTP/1.1", c,* getBuff, 
+            httpBuff[8], * serveAddr;
     int i, reqLen, start, end;
     FILE * testOpen;
 
-    // pathLen = strlen(serverPath);
     serveAddr = malloc(sizeof(char));
 
     reqLen = strlen(request);
     if(reqLen < MINLEN){
         return BAD;
     }
-    printf("Hi there\n");
     for(i = 0; i < reqLen; i++){
         c = request[i];
         if(c == ' '){
@@ -230,46 +237,47 @@ int isValid(char * request, char * serverPath){
             }
         }
     }
-    printf("Start: %d\n",start );
+
     getBuff = malloc(start - 1);
     memcpy(getBuff, request, start); //TODO this needs to check until the first space
-    printf("Get buff: %s\n",getBuff );
-    if(strcmp(get, getBuff) != 0){
-        printf("Bad request\n");
+    //printf("Get buff: %s\n",getBuff );
+
+    if(strcmp(get, getBuff)){
+        //printf("Bad request\n");
         free(getBuff);
-        return BAD; //Not a get request
+        return BAD; 
     }
 
     free(getBuff);
 
+
     memcpy(httpBuff, request + (end + 1), 8);
     if(strcmp(http, httpBuff) != 0){
-        printf("Not http 1.1\n");
+        //printf("Not http 1.1\n");
         return BAD;
     }
 
-
     getFileAddr(serveAddr, serverPath, request);
 
+
     //printf("The returned file address: %s\n", serveAddr);
-    if(serveAddr == NULL){
-        fprintf(stderr, "bad address%s\n", serveAddr);
+    if((serveAddr == NULL)){
+        //fprintf(stderr, "bad address%s\n", serveAddr);
         return BAD;
     }
     if((testOpen = fopen(serveAddr, "r"))){ //TODO this will be wrong if file exists but is forbidden
         fclose(testOpen);
     }
     else if(errno == ENOENT){
-        fprintf(stderr, "File:%s can't be opened\n", serveAddr);
-        return NOTFOUND;
+        //fprintf(stderr, "File:%s can't be opened\n", serveAddr);
+        return NOTFOUND; /* 404 */
     }else if(errno == EACCES){
-        fprintf(stderr, "File:%s DNE\n", serveAddr);
-        return FORBIDDEN;   
+        //fprintf(stderr, "File:%s DNE\n", serveAddr);
+        return FORBIDDEN; /* 403 */
     }else {
-        fprintf(stderr, "Server err\n");
-        return SERVERERR;
+        //fprintf(stderr, "Server err\n");
+        return SERVERERR; /* 500 */
     }
-
 
     //free(serveAddr); //TODO
 
@@ -284,15 +292,15 @@ int isValid(char * request, char * serverPath){
     return OK;
 }
 
-char * getResponce(char * addr){
+char * getResponse(char * addr){
     FILE * fp;
-    char * responce;
+    char * response;
     int fileSize, r, read = 0;
 
     fp = fopen(addr, "r");
 
     if(fp == NULL){
-        err(1, "Errer opening responce file");
+        err(1, "Errer opening response file");
     }
 
     fseek(fp, 0L, SEEK_END);
@@ -301,10 +309,10 @@ char * getResponce(char * addr){
 
     //printf("Size: fileSize %d\n", fileSize );
 
-    responce = malloc(fileSize * sizeof(char));
+    response = malloc(fileSize * sizeof(char));
 
     while(read < fileSize){
-        r = fread(responce, 1, fileSize, fp);
+        r = fread(response, 1, fileSize, fp);
         if(r == 0){
             err(1, "Read failed");
         }
@@ -317,5 +325,26 @@ char * getResponce(char * addr){
     // }
     fclose(fp);
 
-    return responce;
+    return response;
+}
+
+char * getHeader(char * buffer){
+    int i, c = 1;
+    char * header;
+    for(i = 1; i < strlen(buffer); i++){
+        if((buffer[i - 1] == '\r')  && (buffer[i] == '\n')){
+            c = i - 1;
+            break;
+        }
+        if(buffer[i] == '\n'){
+            c = i;
+            break;
+        }
+    };
+
+
+    header = malloc(c); // TODO make sure to free
+    memcpy(header, buffer, c);
+
+    return header;
 }

@@ -2,37 +2,33 @@
 #define MAXSIZE 4096
 #define BACKLOG 200
 
-static void kidhandler(int signum) {
-	/* signal handler for SIGCHLD */
-	waitpid(WAIT_ANY, NULL, WNOHANG);
-}
 
 int main(int argc, char ** argv){
-	char rbuffer[MAXSIZE], * wbuffer; //TODO make rbuffer dynamically allocated
-	int port, lfd, w, written, r;
+	char * rbuffer, * wbuffer;
+	int port, lfd, written, r, logFD; 
 	pid_t pid;
 	socklen_t clientlen;
-	FILE * logFile;
 	struct sockaddr_in s_addr, client;
-	struct sigaction sa;
-	//struct flock logLock;
+	/*If debugging */
+	/*
+	int debugFD;
+	*/
 
 	if (argc != 4){
 		fprintf(stderr, "Wrong number of args\n");
 		exit(-1);
 	}
 
-	/*logLock.l_type = F_WRLCK;
-	logLock.l_whence = SEEK_SET;
-	logLock.l_start = 0;
-	logLock.l_len = 0;
-	logLock.l_pid = getpid(); */
-
 	port = checkArgs(argv);
-	logFile = fopen(argv[3], "w");
+	logFD = open(argv[3], O_WRONLY);
+	/*debugFD = open("DEBUGLOG", O_WRONLY); */
 
-	//daemonize();
-	//daemon(0,0);
+	if(logFD < 0){
+		fprintf(stderr, "Error opening file: %s\n",argv[3] );
+		exit(-1);
+	}
+
+	//daemon(1,1);
 
 	memset(&s_addr, 0, sizeof(s_addr));
 
@@ -45,61 +41,60 @@ int main(int argc, char ** argv){
     if (lfd == -1)
     	err(1, "socket failed");
 
-	if (bind(lfd, (struct sockaddr *) &s_addr, sizeof(s_addr)) == -1)
+	if (bind(lfd, (struct sockaddr *) &s_addr, sizeof(s_addr)) == -1){
 		err(1, "bind failed");
+	}
 
-	if (listen(lfd,BACKLOG) == -1)
-		err(1, "listen failed");
 
-	sa.sa_handler = kidhandler;
-    sigemptyset(&sa.sa_mask);
-	
-    sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGCHLD, &sa, NULL) == -1) 
-            err(1, "sigaction failed");
-
+	if (listen(lfd,BACKLOG) == -1){
+		exit(-1);
+	}
 
 	while (1){
 		int cfd;
 		clientlen = sizeof(&client);
 		cfd = accept(lfd, (struct sockaddr *)&client, &clientlen); 
-		
-		if (cfd == -1)
-		 	err(1, "accept failed");
+
+		if (cfd == -1){
+			exit(-1);
+		}
 
 		pid = fork();
-		if (pid == -1)
-		     err(1, "fork failed");
+
+		if (pid == -1){
+			exit(-1);
+		}
 
 		if(pid == 0) {
-			r = read(cfd, rbuffer, MAXSIZE); 
-			if(r < 0){
-				err(1, "Read error \n");
+
+			rbuffer = malloc(MAXSIZE);
+			while((r = read(cfd, rbuffer, MAXSIZE)) == MAXSIZE){
+				rbuffer = realloc(rbuffer, strlen(rbuffer)*2);
 			}
+			if(r < 0){
+				exit(-1);
+			}
+			
+			/*write(debugFD, "Readbuffer:\n", strlen(rbuffer));
+			write(debugFD, rbuffer, strlen(rbuffer)); */
 
 			wbuffer = handleRequest(rbuffer, argv[2]);
-			written = 0;
 
-			while(written < strlen(wbuffer)){
-				w = write(cfd, wbuffer + written, strlen(wbuffer) - written);
-				if(w == -1){
-					err(1, "write failed");
-				}else{
-					written += w;
-				}
+			written = write(cfd, wbuffer, strlen(wbuffer));
+			if(written == -1){
+				exit(-1);
 			}
 
-			// this needs to be blocking
-			//flockfile
-			//funlockfile
-			//logLock.l_pid = getpid();
-			//fcntl()
-			logEvent(logFile, rbuffer, wbuffer, written, strlen(wbuffer));
+			flock(logFD, LOCK_EX);
+			logEvent(logFD, rbuffer, wbuffer, written, strlen(wbuffer));
+			flock(logFD, LOCK_UN);
 
-			free(wbuffer); // Is this right?
+			free(rbuffer);
+			free(wbuffer); 
 			exit(0);
 		}
         close(cfd);
 	}
+
     return 0;
 }

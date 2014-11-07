@@ -22,14 +22,14 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <fcntl.h>
+#include <sys/file.h>
 
 
 #define MAXPORT 65535
 
 void daemonize();
 int checkArgs(char **);
-void logEvent(FILE * , char * , char * , int ,int);
+void logEvent(int , char * , char * , int ,int);
 void getDate(char *);
 char * handleRequest(char * , char *);
 int isValid(char *, char *);

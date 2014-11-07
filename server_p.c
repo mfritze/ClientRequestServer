@@ -108,6 +108,6 @@ void * tServe(void * params){
     free(wbuffer); 
 
     close(p->clientFD);
-    free(p);
+    //free(p);
     pthread_exit( (void *) 0 );
 }

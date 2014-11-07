@@ -96,7 +96,7 @@ int written, int total){
     head1 = getHeader(request);
     head2 = getHeader(response);
 
-    printf("Head1:%s\nHead2:%s\n",head1, head2 );
+    fprintf(stderr,"Head1:%s\nHead2:%s\n",head1, head2 );
 
     if(!indx) {
         snprintf(entry, ENTRYLEN, "%s\t127.0.0.1\t%s\t%s\n", 
@@ -107,8 +107,8 @@ int written, int total){
     }
 
     write(logFile, entry, strlen(entry));
-    free(head1);
-    free(head2);
+    // free(head1);
+    // free(head2);
     free(date);
 }
 
@@ -220,7 +220,8 @@ int isValid(char * request, char * serverPath){
     such as no GET or HTTP/1.1, no trailing newline,
     or file errors. It returns the appropriate HTTP
     error, or 200 on success. */
-    char   c,* getBuff, httpBuff[8], * serveAddr;
+    char   c,* getBuff, httpBuff[8], * serveAddr,
+    * get = "GET", * http = "HTTP/1.1";
     int i, reqLen, start, end;
     FILE * testOpen;
 
@@ -247,7 +248,7 @@ int isValid(char * request, char * serverPath){
     getBuff = malloc(start - 1);
     memcpy(getBuff, request, start);
 
-    if(strcmp("GET", getBuff)){
+    if(strcmp(get, getBuff)){
         free(getBuff);
         return BAD; 
     }
@@ -256,7 +257,7 @@ int isValid(char * request, char * serverPath){
 
 
     memcpy(httpBuff, request + (end + 1), 8);
-    if(strcmp("HTTP/1.1", httpBuff) != 0){
+    if(strcmp(http, httpBuff) != 0){
         return BAD;
     }
 
@@ -323,20 +324,42 @@ char * getResponse(char * addr){
 char * getHeader(char * buffer){
     /*Returns the first line of 
     the buffer */
-    int i, c;
-    char * header;
-    for(i = 0; i < strlen(buffer); i++){
-        if((buffer[i] == '\n') || (buffer[i] == '\r')){
-            c = i;
-            break;
-        }
-    };
+    // int i, start = 0;
+    // char header[sizeof(buffer)];
+    char * nL;
+    // temp = malloc(strlen(buffer));
+    // strcpy(temp, buffer);
 
-    header = malloc(c);
-    memcpy(header, buffer, c);
+    // for(i = 0; i < strlen(buffer); i++){
+    //     if((buffer[i] == '\n') || (buffer[i] == '\r')){
+    //         start = 1
+    //     }
+    //     if(start != 1){
 
-    if(header[strlen(header) - 1] == '\r'){
-        header[strlen(header) - 1] = '\0';
+    //     }
+    // };
+
+    // header = malloc(c);
+    // memcpy(header, buffer, c);
+
+    // if(header[strlen(header) - 1] == '\r'){
+    //     header[strlen(header) - 1] = '\0';
+    // }
+    // return header;
+
+    nL = strchr(buffer, '\n');
+    if(!nL){
+        printf("Not found\n");
+        return buffer;
     }
-    return header;
+
+    *nL = '\0';
+    nL = strchr(buffer, '\r');
+    if(!nL){
+        printf("Not found\n");
+        return buffer;
+    }
+    *nL = '\0';
+    printf("HEADER: %s\n", buffer);
+    return buffer;
 }

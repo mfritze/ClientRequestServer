@@ -15,7 +15,7 @@ int main(int argc, char ** argv){
 	FILE * logFile;
 	struct sockaddr_in s_addr, client;
 	struct sigaction sa;
-	struct flock logLock;
+	//struct flock logLock;
 
 	if (argc != 4){
 		fprintf(stderr, "Wrong number of args\n");
@@ -32,6 +32,7 @@ int main(int argc, char ** argv){
 	logFile = fopen(argv[3], "w");
 
 	//daemonize();
+	//daemon(0,0);
 
 	memset(&s_addr, 0, sizeof(s_addr));
 
@@ -72,7 +73,6 @@ int main(int argc, char ** argv){
 
 		if(pid == 0) {
 			r = read(cfd, rbuffer, MAXSIZE); 
-			//TODO maybe same as write below
 			if(r < 0){
 				err(1, "Read error \n");
 			}
@@ -94,11 +94,8 @@ int main(int argc, char ** argv){
 			//funlockfile
 			//logLock.l_pid = getpid();
 			//fcntl()
-			printf("About to log\n");
 			logEvent(logFile, rbuffer, wbuffer, written, strlen(wbuffer));
 
-
-			printf("Finished logging\n");
 			free(wbuffer); // Is this right?
 			exit(0);
 		}

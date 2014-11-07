@@ -87,18 +87,13 @@ int checkArgs(char ** argv){
 void logEvent(FILE * logFile, char * request, char * response, int written, int total){
     //TODO make this work lol
     char * date, entry[ENTRYLEN] ,* indx, * head1, * head2;
-    //printf("--Request--\n%s\n--Response--\n%s\n", request, response);
     date = malloc(DATELEN * sizeof(char));
     getDate(date);
-    //printf("--Date--\n%s\n", date );
     indx = strstr(response, "OK");
 
     head1 = getHeader(request);
     head2 = getHeader(response);
 
-    printf("--Headers--\n-H1:%s\n-H2:%s\nnewline", head1, head2);
-    //printf("H1--%s--\n", head1);
-    //printf("--indx--\n%s\n",indx );
     if(!indx) {
         snprintf(entry, ENTRYLEN, "%s\t127.0.0.1\t%s\t%s\n", 
             date, head1, head2);
@@ -106,9 +101,8 @@ void logEvent(FILE * logFile, char * request, char * response, int written, int 
         snprintf(entry, ENTRYLEN, "%s\t127.0.0.1\t%s\t%s\t%d/%d\n", 
             date, head1, head2, written, total);        
     }
-    //printf("--Pre write--\n--Entry--\n%s\n", entry);
+
     fwrite(entry,1, strlen(entry), logFile);
-    //printf("Post write\n");
     free(head1);
     free(head2);
     free(date);
@@ -168,7 +162,7 @@ char * handleRequest(char * request, char * serverPath){
 
     free(htmlresponse);
     free(date);
-    //1free(fPath);
+    //free(fPath);
     return rMessage;
 }
 
@@ -192,8 +186,6 @@ void getFileAddr(char * fPath, char * sPath, char * request){
         }
     }
     //TODO make sure the leading char is a /
-    //fprintf(stderr, "The provided address:%s\n", request + start );
-    //if((sPath[pathLen - 1] == '/') || (sPath[pathLen - 1] == '.')){
     if((sPath[pathLen - 1] == '.')){
         sPath[pathLen - 1] = '\0';
         pathLen -= 1;
@@ -204,13 +196,9 @@ void getFileAddr(char * fPath, char * sPath, char * request){
     }
 
     dif = end - start;
-    fPath = realloc(fPath, (pathLen + dif + 1) * sizeof(char)); // TODO remember to free
+    fPath = realloc(fPath, (pathLen + dif + 1) * sizeof(char)); 
     memcpy(fPath , sPath, pathLen);
     memcpy(fPath + pathLen, request  + start, dif); //requested file
-    //fPath[dif] = '\0';
-    //fPath = realloc(fPath, (dif + 1) + pathLen);
-    //strcat(fPath, sPath); //TODO remove the possible double //
-    //printf("Full Path: %s\n", fPath ); 
 }
 
 int isValid(char * request, char * serverPath){
@@ -239,11 +227,9 @@ int isValid(char * request, char * serverPath){
     }
 
     getBuff = malloc(start - 1);
-    memcpy(getBuff, request, start); //TODO this needs to check until the first space
-    //printf("Get buff: %s\n",getBuff );
+    memcpy(getBuff, request, start);
 
     if(strcmp(get, getBuff)){
-        //printf("Bad request\n");
         free(getBuff);
         return BAD; 
     }
@@ -253,42 +239,34 @@ int isValid(char * request, char * serverPath){
 
     memcpy(httpBuff, request + (end + 1), 8);
     if(strcmp(http, httpBuff) != 0){
-        //printf("Not http 1.1\n");
+        return BAD;
+    }
+
+    /* Test trailing new line */
+    if(((request[reqLen - 1] != '\n') || (request[reqLen - 2] != '\n')) &&
+       ((request[reqLen - 1] != '\n') || (request[reqLen - 1] != '\r') ||
+        (request[reqLen - 3] != '\n'))){
         return BAD;
     }
 
     getFileAddr(serveAddr, serverPath, request);
 
-
-    //printf("The returned file address: %s\n", serveAddr);
     if((serveAddr == NULL)){
-        //fprintf(stderr, "bad address%s\n", serveAddr);
         return BAD;
     }
-    if((testOpen = fopen(serveAddr, "r"))){ //TODO this will be wrong if file exists but is forbidden
+    if((testOpen = fopen(serveAddr, "r"))){ 
         fclose(testOpen);
     }
     else if(errno == ENOENT){
-        //fprintf(stderr, "File:%s can't be opened\n", serveAddr);
         return NOTFOUND; /* 404 */
     }else if(errno == EACCES){
-        //fprintf(stderr, "File:%s DNE\n", serveAddr);
         return FORBIDDEN; /* 403 */
     }else {
-        //fprintf(stderr, "Server err\n");
         return SERVERERR; /* 500 */
     }
 
-    //free(serveAddr); //TODO
+    free(serveAddr); 
 
-    //test end newline
-    // \n, \n\r\n, \n\n
-    if( (request[reqLen - 1] != '\n') || 
-       ((request[reqLen - 2] != '\r') && (request[reqLen - 3] != '\n')) ||
-       ((request[reqLen - 1] != '\n') && (request[reqLen - 2] != '\n'))){
-        printf("Doesnt end in a newline \n");
-        return BAD;
-    }
     return OK;
 }
 
@@ -307,8 +285,6 @@ char * getResponse(char * addr){
     fileSize = ftell(fp);
     fseek(fp, 0L, SEEK_SET);
 
-    //printf("Size: fileSize %d\n", fileSize );
-
     response = malloc(fileSize * sizeof(char));
 
     while(read < fileSize){
@@ -319,32 +295,30 @@ char * getResponse(char * addr){
         read += r;
     }
 
-    // if(rBytes != fileSize){
-    //     fprintf(stderr, "Errer Reading: %s, exiting \n", addr);
-    //     exit(-1);
-    // }
     fclose(fp);
-
     return response;
 }
 
 char * getHeader(char * buffer){
-    int i, c = 1;
+    int i, c;
     char * header;
-    for(i = 1; i < strlen(buffer); i++){
-        if((buffer[i - 1] == '\r')  && (buffer[i] == '\n')){
-            c = i - 1;
-            break;
-        }
-        if(buffer[i] == '\n'){
+    for(i = 0; i < strlen(buffer); i++){
+        if((buffer[i] == '\n') || (buffer[i] == '\r')){
             c = i;
             break;
         }
     };
 
+    // while((buffer[c] != '\r') && (buffer[c] != '\n')){
+    //     c--;
+    // }
+
 
     header = malloc(c); // TODO make sure to free
     memcpy(header, buffer, c);
 
+    if(header[strlen(header) - 1] == '\r'){
+        header[strlen(header) - 1] = '\0';
+    }
     return header;
 }

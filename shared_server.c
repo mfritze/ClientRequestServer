@@ -88,15 +88,25 @@ int written, int total){
     /* Logs the server events into the logfile specified by 
     the user, to the format specified in the spec */
     //TODO make this work lol
-    char * date, entry[ENTRYLEN] ,* indx, * head1, * head2;
+    char * date, entry[ENTRYLEN] ,* indx, * head1, * head2, *temp;
     date = malloc(DATELEN * sizeof(char));
     getDate(date);
     indx = strstr(response, "OK");
 
-    head1 = getHeader(request);
-    head2 = getHeader(response);
+    head1 = malloc(strlen(request));
+    head2 = malloc(strlen(response));
+    head1 = getHeader(request, head1);
+    head2 = getHeader(response, head2);
 
-    fprintf(stderr,"Head1:%s\nHead2:%s\n",head1, head2 );
+    temp = strstr(head2, "4");
+    if(!temp){
+        temp = strstr(head2, "5");
+    }
+    if(!temp){
+        temp = strstr(head2, "2");
+    }
+    //printf("head2:%s\n--temp:%s\n", head2, temp);
+    head2 = temp;
 
     if(!indx) {
         snprintf(entry, ENTRYLEN, "%s\t127.0.0.1\t%s\t%s\n", 
@@ -107,8 +117,6 @@ int written, int total){
     }
 
     write(logFile, entry, strlen(entry));
-    // free(head1);
-    // free(head2);
     free(date);
 }
 
@@ -213,6 +221,7 @@ void getFileAddr(char * fPath, char * sPath, char * request){
     fPath = realloc(fPath, (pathLen + dif + 1) * sizeof(char)); 
     memcpy(fPath , sPath, pathLen);
     memcpy(fPath + pathLen, request  + start, dif); /*requested file*/
+    fPath[pathLen + dif] = '\0';
 }
 
 int isValid(char * request, char * serverPath){
@@ -220,9 +229,10 @@ int isValid(char * request, char * serverPath){
     such as no GET or HTTP/1.1, no trailing newline,
     or file errors. It returns the appropriate HTTP
     error, or 200 on success. */
-    char   c,* getBuff, httpBuff[8], * serveAddr,
-    * get = "GET", * http = "HTTP/1.1";
+    char   c,* getBuff, httpBuff[8], * serveAddr, *firsts,
+    * get = "GET", * http = "HTTP/1.1", * seconds;
     int i, reqLen, start, end;
+
     FILE * testOpen;
 
     serveAddr = malloc(sizeof(char));
@@ -246,34 +256,54 @@ int isValid(char * request, char * serverPath){
     }
 
     getBuff = malloc(start - 1);
-    memcpy(getBuff, request, start);
+    firsts = strchr(request, ' ');
+    //printf("firsts:%s, delta pointer: %d\n", firsts, firsts - request);
 
-    if(strcmp(get, getBuff)){
+    if(!firsts){
+        return BAD;
+    }
+    if((firsts - request) != 3){
+        return BAD;
+    }
+
+    memcpy(getBuff, request, 3);
+
+    if(strncmp(get, getBuff,3)){
         free(getBuff);
         return BAD; 
     }
 
     free(getBuff);
 
+    seconds = strchr(request + 4, ' ');
+    if(!seconds){
+        return BAD;
+    }
 
-    memcpy(httpBuff, request + (end + 1), 8);
-    if(strcmp(http, httpBuff) != 0){
+    memcpy(httpBuff, seconds + 1, 8);
+    printf("httpBuff:%s\n", httpBuff);
+    if(strncmp(http, httpBuff, 8) != 0){
+        printf("bad http\n");
         return BAD;
     }
 
     /* Test trailing new line */
+    printf("Request:%s\n", request);
     if(((request[reqLen - 1] != '\n') || (request[reqLen - 2] != '\n')) &&
        ((request[reqLen - 1] != '\n') || (request[reqLen - 2] != '\r') ||
         (request[reqLen - 3] != '\n'))){
-        printf("Newline isshe\n");
+        printf("bad newline\n");
         return BAD;
     }
 
     getFileAddr(serveAddr, serverPath, request);
 
     if((serveAddr == NULL)){
+        printf("bad file adr\n");
         return BAD;
     }
+
+    printf("Server addr: %s\n", serveAddr );
     if((testOpen = fopen(serveAddr, "r"))){ 
         fclose(testOpen);
     }
@@ -321,45 +351,22 @@ char * getResponse(char * addr){
     return response;
 }
 
-char * getHeader(char * buffer){
+char * getHeader(char * buffer, char * copy){
     /*Returns the first line of 
     the buffer */
-    // int i, start = 0;
-    // char header[sizeof(buffer)];
     char * nL;
-    // temp = malloc(strlen(buffer));
-    // strcpy(temp, buffer);
+    memcpy(copy, buffer, strlen(buffer));
 
-    // for(i = 0; i < strlen(buffer); i++){
-    //     if((buffer[i] == '\n') || (buffer[i] == '\r')){
-    //         start = 1
-    //     }
-    //     if(start != 1){
-
-    //     }
-    // };
-
-    // header = malloc(c);
-    // memcpy(header, buffer, c);
-
-    // if(header[strlen(header) - 1] == '\r'){
-    //     header[strlen(header) - 1] = '\0';
-    // }
-    // return header;
-
-    nL = strchr(buffer, '\n');
+    nL = strchr(copy, '\n');
     if(!nL){
-        printf("Not found\n");
-        return buffer;
+        return copy;
     }
 
     *nL = '\0';
-    nL = strchr(buffer, '\r');
+    nL = strchr(copy, '\r');
     if(!nL){
-        printf("Not found\n");
-        return buffer;
+        return copy;
     }
     *nL = '\0';
-    printf("HEADER: %s\n", buffer);
-    return buffer;
+    return copy;
 }

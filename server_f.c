@@ -28,7 +28,7 @@ int main(int argc, char ** argv){
 		exit(-1);
 	}
 
-	//daemon(1,1);
+	daemon(1,1);
 
 	memset(&s_addr, 0, sizeof(s_addr));
 

@@ -34,4 +34,4 @@ char * handleRequest(char * , char *);
 int isValid(char *, char *);
 char * getResponse(char * );
 void getFileAddr(char * fPath, char * sPath, char * request);
-char * getHeader(char * buffer);
+char * getHeader(char * buffer, char *);

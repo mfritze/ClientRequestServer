@@ -1,9 +1,17 @@
+Matthew Fritze
+1360555
+CMPUT 379
+Assignment 2 
+
 ClietRequestServer
 ==================
-ps -efj |grep ./server
+Make:
+$make all
 
-wget http://localhost:8213/file.html
+run:
+$server_p port serving_dir logfile
+$server_f port serving_dir logfile
 
-used Bob's server thing as a reference
-
-Make sure there are no memory leaks
+Collaboration:
+Blaine Lewis
+Bob Beck's server.c

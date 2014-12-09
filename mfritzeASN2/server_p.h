@@ -12,7 +12,8 @@ extern char ** sortArgs(char ** );
 void * tServe(void * );
 
 struct pthread_params{
-            int clientFD;
-            int logFD;
-            char * serverDir;
+    int clientFD;
+    int logFD;
+    char * serverDir;
+
 };

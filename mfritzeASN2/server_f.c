@@ -1,8 +1,3 @@
-/* Matthew Fritze
- * 1360555
- * CMPUT 379
- * Assignment 2 */
- 
 #include "server_f.h"
 #define MAXSIZE 4096
 #define BACKLOG 200
@@ -37,14 +32,14 @@ int main(int argc, char ** argv){
 
 	memset(&s_addr, 0, sizeof(s_addr));
 
-	s_addr.sin_family = AF_INET;
-	s_addr.sin_port = htons(port);
-	s_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    s_addr.sin_family = AF_INET;
+    s_addr.sin_port = htons(port);
+    s_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	lfd = socket(AF_INET, SOCK_STREAM, 0); 
+    lfd = socket(AF_INET, SOCK_STREAM, 0); 
 
-	if (lfd == -1)
-		err(1, "socket failed");
+    if (lfd == -1)
+    	err(1, "socket failed");
 
 	if (bind(lfd, (struct sockaddr *) &s_addr, sizeof(s_addr)) == -1){
 		err(1, "bind failed");
@@ -91,16 +86,15 @@ int main(int argc, char ** argv){
 			}
 
 			flock(logFD, LOCK_EX);
-			logEvent(logFD, rbuffer, wbuffer, 
-				written, strlen(wbuffer));
+			logEvent(logFD, rbuffer, wbuffer, written, strlen(wbuffer));
 			flock(logFD, LOCK_UN);
 
 			free(rbuffer);
 			free(wbuffer); 
 			exit(0);
 		}
-	close(cfd);
+        close(cfd);
 	}
 
-	return 0;
+    return 0;
 }
